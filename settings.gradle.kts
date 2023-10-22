@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "cronet-ktx"
 include(":cronet")
+include(":sample")
