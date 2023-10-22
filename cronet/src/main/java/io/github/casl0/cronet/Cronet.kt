@@ -16,7 +16,9 @@
 
 package io.github.casl0.cronet
 
+import android.content.Context
 import android.util.Log
+import com.google.android.gms.net.CronetProviderInstaller
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.chromium.net.CronetEngine
 import org.chromium.net.CronetException
@@ -31,23 +33,52 @@ import kotlin.coroutines.resume
 /** Cronetリクエストの結果 */
 sealed interface Result {
     class Success(
-            /** レスポンスヘッダー */
-            val header: Map<String, List<String>>,
+        /** レスポンスヘッダー */
+        val header: Map<String, List<String>>,
 
-            /** レスポンスボディ */
-            val body: ByteArray,
+        /** レスポンスボディ */
+        val body: ByteArray,
 
-            /** プロトコル */
-            val negotiatedProtocol: String
+        /** プロトコル */
+        val negotiatedProtocol: String
     ) : Result
 
     data class Error(
-            /** エラー時の例外 */
-            val exception: CronetException,
+        /** エラー時の例外 */
+        val exception: CronetException,
 
-            /** HTTPステータスコード */
-            val statusCode: Int?
+        /** HTTPステータスコード */
+        val statusCode: Int?
     ) : Result
+}
+
+/**
+ * Cronetの初期化をします
+ *
+ * @param cacheInMemoryBytes インメモリキャッシュのサイズ（バイト）
+ * @return 初期化に成功した場合はCronetEngineのインスタンス
+ */
+suspend fun Context.initCronetEngine(
+    cacheInMemoryBytes: Long = 10 * 1024 * 1024
+): kotlin.Result<CronetEngine> {
+    return suspendCancellableCoroutine { continuation ->
+        CronetProviderInstaller.installProvider(this)
+            .addOnSuccessListener {
+                val cronetEngine =
+                    CronetEngine.Builder(this)
+                        .enableHttpCache(
+                            CronetEngine.Builder.HTTP_CACHE_IN_MEMORY,
+                            cacheInMemoryBytes
+                        )
+                        .enableBrotli(true)
+                        .enableQuic(true)
+                        .build()
+                continuation.resume(kotlin.Result.success(cronetEngine))
+            }
+            .addOnFailureListener {
+                continuation.resume(kotlin.Result.failure(it))
+            }
+    }
 }
 
 /**
@@ -64,25 +95,25 @@ suspend fun CronetEngine.request(url: String, executor: ExecutorService): Result
             private val receiveChannel = Channels.newChannel(bytesReceived)
 
             override fun onRedirectReceived(
-                    request: UrlRequest,
-                    info: UrlResponseInfo,
-                    newLocationUrl: String
+                request: UrlRequest,
+                info: UrlResponseInfo,
+                newLocationUrl: String
             ) {
                 Log.d(TAG, "Redirect to $newLocationUrl")
                 request.followRedirect()
             }
 
             override fun onResponseStarted(
-                    request: UrlRequest,
-                    info: UrlResponseInfo
+                request: UrlRequest,
+                info: UrlResponseInfo
             ) {
                 request.read(ByteBuffer.allocateDirect(BYTE_BUFFER_CAPACITY_BYTES))
             }
 
             override fun onReadCompleted(
-                    request: UrlRequest,
-                    info: UrlResponseInfo,
-                    byteBuffer: ByteBuffer
+                request: UrlRequest,
+                info: UrlResponseInfo,
+                byteBuffer: ByteBuffer
             ) {
                 byteBuffer.flip()
                 receiveChannel.write(byteBuffer)
@@ -93,34 +124,34 @@ suspend fun CronetEngine.request(url: String, executor: ExecutorService): Result
             }
 
             override fun onSucceeded(
-                    request: UrlRequest,
-                    info: UrlResponseInfo
+                request: UrlRequest,
+                info: UrlResponseInfo
             ) {
                 continuation.resume(
-                        Result.Success(
-                                header = info.allHeaders,
-                                body = bytesReceived.toByteArray(),
-                                negotiatedProtocol = info.negotiatedProtocol
-                        )
+                    Result.Success(
+                        header = info.allHeaders,
+                        body = bytesReceived.toByteArray(),
+                        negotiatedProtocol = info.negotiatedProtocol
+                    )
                 )
             }
 
             override fun onFailed(
-                    request: UrlRequest,
-                    info: UrlResponseInfo?,
-                    error: CronetException
+                request: UrlRequest,
+                info: UrlResponseInfo?,
+                error: CronetException
             ) {
                 continuation.resume(
-                        Result.Error(
-                                exception = error,
-                                statusCode = info?.httpStatusCode
-                        )
+                    Result.Error(
+                        exception = error,
+                        statusCode = info?.httpStatusCode
+                    )
                 )
             }
 
             override fun onCanceled(
-                    request: UrlRequest,
-                    info: UrlResponseInfo?
+                request: UrlRequest,
+                info: UrlResponseInfo?
             ) {
                 super.onCanceled(request, info)
             }
