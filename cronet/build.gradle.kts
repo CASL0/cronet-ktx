@@ -33,6 +33,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.org.jetbrains.kotlinx.coroutines.android)
+    implementation(libs.org.chromium.net.cronet.api)
     testImplementation(libs.junit)
     testImplementation(libs.org.hamcrest.all)
 }
