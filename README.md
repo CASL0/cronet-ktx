@@ -21,3 +21,7 @@ sample モジュールを以下のコマンドでビルドしてください。
 ```sh
 ./gradlew :sample:assembleRelease
 ```
+
+## KDoc
+
+https://casl0.github.io/cronet-ktx
