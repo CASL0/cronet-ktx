@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.org.jetbrains.kotlin.android)
     alias(libs.plugins.android.library)
+    id("org.jetbrains.dokka")
 }
 
 android {
