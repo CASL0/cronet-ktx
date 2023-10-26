@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.org.jetbrains.kotlin.android)
     alias(libs.plugins.android.library)
     id("org.jetbrains.dokka")
+    id("maven-publish")
 }
 
 android {
@@ -40,4 +41,17 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.org.hamcrest.all)
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("maven") {
+                this.groupId = "com.github.CASL0"
+                this.artifactId = "cronet-ktx"
+                this.version = "1.0.1"
+                from(components["release"])
+            }
+        }
+    }
 }
